@@ -1,0 +1,391 @@
+<title>Rekap Pemeliharaan Penghantar dan Trafo</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: alat satu kolom. Kepala + pilih file, ringkasan per kategori, lalu rincian per sirkit/unit. */
+:root {
+  --bg: #F6F7F9; --surface: #FFFFFF; --ink: #17212E; --muted: #5A6676; --line: #DCE1E8;
+  --navy: #1E3A5F; --accent: #E0A100; --accent-ink: #4A3600; --soft: #EAF0F6;
+  --ok: #1E7B4A; --warn: #B36B00; --bad: #B3261E;
+  --v500: #1E3A5F; --v150: #8B1E24; --v70: #E3B505;
+  --sans: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "Consolas", monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0F1620; --surface: #172230; --ink: #E6ECF2; --muted: #9AA8B8; --line: #2A3747;
+  --navy: #8DB4E2; --accent: #F2B92E; --accent-ink: #241A00; --soft: #1D2B3C;
+  --ok: #5CC28C; --warn: #F0A33C; --bad: #F2867E; --v500: #7FA6DB; --v150: #D9686E; --v70: #F2C94C; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0F1620; --surface: #172230; --ink: #E6ECF2; --muted: #9AA8B8; --line: #2A3747;
+  --navy: #8DB4E2; --accent: #F2B92E; --accent-ink: #241A00; --soft: #1D2B3C;
+  --ok: #5CC28C; --warn: #F0A33C; --bad: #F2867E; --v500: #7FA6DB; --v150: #D9686E; --v70: #F2C94C; color-scheme: dark }
+body { background: var(--bg); color: var(--ink); font-family: var(--sans); font-size: 15px; line-height: 1.5; }
+.wrap { max-width: 1040px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 28px 56px; display: grid; gap: 24px; }
+header { display: grid; gap: 10px; }
+.eyebrow { font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+h1 { margin: 0; font-size: clamp(24px, 4vw, 34px); line-height: 1.15; text-wrap: balance; color: var(--navy); }
+h2 { margin: 0; font-size: 18px; }
+.lead { margin: 0; color: var(--muted); max-width: 64ch; }
+.privacy { display: inline-flex; align-items: center; gap: 8px; width: fit-content; padding: 6px 12px; border-radius: 999px; background: var(--soft); color: var(--navy); font-size: 13px; font-weight: 600; }
+.privacy svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2; }
+.drop { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; padding: 18px 20px; border: 1.5px dashed var(--line); border-radius: 12px; background: var(--surface); }
+.drop.over { border-color: var(--navy); background: var(--soft); }
+.drop p { margin: 0; flex: 1 1 260px; min-width: 0; color: var(--muted); }
+.drop strong { color: var(--ink); }
+button, .filebtn { font: inherit; font-weight: 600; font-size: 14px; border-radius: 8px; padding: 9px 14px; cursor: pointer; border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
+.filebtn { background: var(--navy); border-color: var(--navy); color: var(--bg); }
+button:hover, .filebtn:hover { filter: brightness(1.07); }
+button:focus-visible, .filebtn:focus-within, select:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+input[type=file] { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.status { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; }
+.badge { font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; padding: 3px 8px; border-radius: 6px; background: var(--accent); color: var(--accent-ink); }
+.badge.real { background: var(--soft); color: var(--navy); }
+.status .src { font-weight: 600; }
+.status .meta { color: var(--muted); font-size: 14px; }
+.err { color: var(--bad); font-weight: 600; margin: 0; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; display: grid; gap: 14px; min-width: 0; }
+.panel-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; }
+.tablewrap { overflow-x: auto; min-width: 0; }
+table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+th { font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+td.num, th.num { text-align: right; }
+td.cat { font-weight: 600; white-space: nowrap; }
+tr.sub td { font-weight: 700; background: var(--soft); }
+tr.minor td { color: var(--muted); }
+.bar { height: 10px; border-radius: 4px; background: var(--navy); min-width: 2px; }
+.v500 { --vc: var(--v500); } .v150 { --vc: var(--v150); } .v70 { --vc: var(--v70); }
+.bar.v500, .bar.v150, .bar.v70 { background: var(--vc); }
+.dot { display: inline-block; width: 10px; height: 10px; border-radius: 3px; background: var(--vc); margin-right: 8px; vertical-align: baseline; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: var(--muted); }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+td.no { color: var(--muted); width: 3em; }
+.barcell { width: 26%; min-width: 90px; }
+.flow { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.flow div { background: var(--soft); border-radius: 10px; padding: 10px 12px; }
+.flow b { display: block; font-size: 22px; color: var(--navy); font-variant-numeric: tabular-nums; }
+.flow span { font-size: 13px; color: var(--muted); }
+.rules { margin: 0; padding-left: 20px; display: grid; gap: 4px; color: var(--muted); font-size: 14px; }
+.rules b { color: var(--ink); }
+.mono { font-family: var(--mono); font-size: 13px; }
+details { border-top: 1px solid var(--line); padding-top: 10px; }
+summary { cursor: pointer; font-weight: 600; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.chip { font-family: var(--mono); font-size: 12px; background: var(--soft); border-radius: 6px; padding: 3px 8px; }
+select { font: inherit; font-size: 14px; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
+.toast { font-size: 13px; color: var(--ok); font-weight: 600; }
+.foot { color: var(--muted); font-size: 13px; }
+@media (max-width: 560px) { .barcell { display: none; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">PLN UP2B Jawa Barat · Rencana Operasi Bulanan</div>
+    <h1>Rekap Pemeliharaan Penghantar dan Trafo</h1>
+    <p class="lead">Unduh jadwal pekerjaan dari aplikasi JALUR (file <span class="mono">FORM_JAD.PEK150KV.xls</span>), lalu pilih file itu di sini. Aplikasi menyaring jadwal, menyamakan nama ruas dan trafo, lalu menghitung pekerjaan, sirkit, unit, dan jam padam per kategori.</p>
+    <span class="privacy"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>File diproses di browser ini, tidak diunggah ke mana pun</span>
+  </header>
+
+  <label class="drop" id="drop" for="file">
+    <p><strong>Tarik file dari JALUR ke sini</strong> atau pilih dari laptop. File .xls hasil unduhan JALUR langsung bisa dibaca, tidak perlu dibuka di Excel dulu.</p>
+    <span class="filebtn">Pilih file dari JALUR<input type="file" id="file" accept=".xls,.htm,.html"></span>
+    <button type="button" id="sample">Tampilkan contoh</button>
+  </label>
+
+  <div class="status" id="status"></div>
+
+  <section class="panel" id="sumPanel">
+    <div class="panel-head"><h2 id="sumTitle">Ringkasan</h2><span><button type="button" id="copySum">Salin ringkasan untuk Excel</button> <span class="toast" id="toastSum"></span></span></div>
+    <div class="legend" aria-label="Warna tegangan"><span class="v500"><i class="dot"></i>500 kV</span><span class="v150"><i class="dot"></i>150 kV</span><span class="v70"><i class="dot"></i>70 kV</span></div>
+    <div class="tablewrap"><table id="sumTable"></table></div>
+    <div class="flow" id="flow"></div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head"><h2>Rincian per sirkit dan unit</h2>
+      <span><select id="catFilter" aria-label="Filter kategori"></select> <button type="button" id="copyDet">Salin rincian</button> <span class="toast" id="toastDet"></span></span></div>
+    <div class="tablewrap"><table id="detTable"></table></div>
+    <details id="fixDetails"><summary>Nama yang disamakan otomatis</summary><div class="chips" id="fixes"></div></details>
+    <details><summary>Baris yang tidak dihitung</summary><div class="tablewrap"><table id="exTable"></table></div></details>
+  </section>
+
+  <section class="panel">
+    <h2>Aturan hitung</h2>
+    <ol class="rules">
+      <li><b>Kolom DIJADWALKAN kosong tidak dihitung.</b> Baris TANPA PADAM, ONLINE, dan Sifat 05 juga tidak dihitung.</li>
+      <li><b>Pekerjaan menginap dihitung kontinu</b> dari jam mulai sampai jam selesai.</li>
+      <li><b>Penghantar dua arah dihitung satu kali.</b> Pekerjaan A-B dan B-A dengan tanggal dan jam sama disatukan. Bay penghantar di GI ikut dihitung sebagai sirkit.</li>
+      <li><b>Trafo sama dengan jadwal sama dihitung satu kali</b>, siapa pun pengajunya (UPT, UP2D, atau lainnya).</li>
+    </ol>
+    <p class="foot">Jam padam per sirkit atau unit dihitung dari gabungan jadwalnya, jadi jam yang tumpang tindih tidak dihitung dua kali. Busbar, kopel, kapasitor, dan diameter tidak masuk rekap.</p>
+  </section>
+</div>
+
+<script>
+const BULAN = {JAN:1,FEB:2,MAR:3,APR:4,MEI:5,MAY:5,JUN:6,JUL:7,AGU:8,AGT:8,AUG:8,SEP:9,OKT:10,OCT:10,NOV:11,DES:12,DEC:12};
+const NAMA_BULAN = ['','Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+const CATS = ['Penghantar 150 kV','Penghantar 70 kV','Trafo IBT 500/150 kV','Trafo 150/20 kV','Trafo 70/20 kV','IBT 150/70 kV','Trafo 70/30 kV','Trafo lain'];
+const MAIN = { 'PENGHANTAR': CATS.slice(0,2), 'TRAFO': CATS.slice(2,5) };
+const VOLT = { 'Trafo IBT 500/150 kV': 'v500', 'Penghantar 150 kV': 'v150', 'Trafo 150/20 kV': 'v150', 'IBT 150/70 kV': 'v150', 'Trafo lain': 'v150', 'Penghantar 70 kV': 'v70', 'Trafo 70/20 kV': 'v70', 'Trafo 70/30 kV': 'v70' };
+const $ = id => document.getElementById(id);
+const norm = s => (s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+const fmt = n => (Math.round(n * 10) / 10).toLocaleString('id-ID');
+
+function readRows(html) {
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  let title = ''; const rows = [];
+  for (const tr of doc.querySelectorAll('tr')) {
+    const cells = [];
+    for (const td of tr.querySelectorAll('td,th')) {
+      cells.push((td.textContent || '').replace(/\s+/g, ' ').trim());
+      const cs = parseInt(td.getAttribute('colspan') || '1', 10);
+      for (let i = 1; i < cs; i++) cells.push('');
+    }
+    if (cells[0] && /^BULAN/i.test(cells[0])) title = cells[0];
+    if (cells.length >= 19 && /^\d+$/.test(cells[0])) { while (cells.length < 20) cells.push(''); rows.push(cells); }
+  }
+  return { title, rows };
+}
+function parseDate(s) {
+  const m = /(\d{1,2})\s+([A-Za-z]{3})\w*\s+(\d{4})/.exec(s || '');
+  if (!m || !BULAN[m[2].toUpperCase()]) return null;
+  return new Date(+m[3], BULAN[m[2].toUpperCase()] - 1, +m[1]);
+}
+function parseInterval(d1, d2, jam) {
+  const a = parseDate(d1), b = parseDate(d2);
+  const m = /^\s*(\d{1,2})[:.](\d{2})\s*-\s*(\d{1,2})[:.](\d{2})/.exec(jam || '');
+  if (!a || !b || !m) return null;
+  const [h1, m1, h2, m2] = m.slice(1).map(Number);
+  const s = new Date(a); s.setHours(h1, m1);
+  const e = new Date(b); e.setHours(h2, m2);
+  if (h2 === 23 && m2 === 59) e.setMinutes(e.getMinutes() + 1);
+  if (e <= s) e.setDate(e.getDate() + 1);
+  return [s, e];
+}
+const giName = lok => lok.toUpperCase().replace(/^(KONTROL\s+)?(GITET|GIS|GI|TRS)\s+\d+\s*KV\s+/, '').trim();
+const stripVolt = s => s.replace(/\b\d+\s*KV\b/gi, '');
+const circuitNo = s => { const m = /#\s*(\d+)/.exec(s); return m ? m[1] : ''; };
+function lev(a, b) {
+  const d = Array.from({ length: a.length + 1 }, (_, i) => [i]);
+  for (let j = 1; j <= b.length; j++) d[0][j] = j;
+  for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++)
+    d[i][j] = Math.min(d[i-1][j] + 1, d[i][j-1] + 1, d[i-1][j-1] + (a[i-1] === b[j-1] ? 0 : 1));
+  return d[a.length][b.length];
+}
+function makeCanon(giNames, fixes) {
+  return name => {
+    const n = norm(name);
+    if (!n) return name;
+    if (giNames.has(n)) return giNames.get(n);
+    let best = null, bestR = 0;
+    for (const [k, v] of giNames) { const r = 1 - lev(n, k) / Math.max(n.length, k.length); if (r > bestR) { bestR = r; best = v; } }
+    if (best && bestR >= 0.85) { fixes.add(name + ' → ' + best); return best; }
+    return name;
+  };
+}
+const TRAFO_RE = /(TRAFO|TRF|IBT)\s*#?\s*(\d+)/i;
+const NON_PHT = ['TRAFO','TRF','IBT','KAPASITOR','KOPEL','BUS','REAKTOR','DIAMETER','SECTION','GENERATOR'];
+function classify(r, canon) {
+  const lokasi = r[3], P = r[7].toUpperCase();
+  const gi = giName(lokasi);
+  const gv = (/(\d+)\s*KV/.exec(lokasi.toUpperCase()) || [])[1] || '';
+  let v = r[5].replace(/\D/g, '');
+  const m = TRAFO_RE.exec(P);
+  if (m) {
+    const no = m[2], txt = P.replace(/\./g, '/'), ibt = m[1].toUpperCase() === 'IBT';
+    let cat;
+    if (txt.includes('500/150')) cat = 'Trafo IBT 500/150 kV';
+    else if (txt.includes('150/70')) cat = 'IBT 150/70 kV';
+    else if (txt.includes('150/20')) cat = 'Trafo 150/20 kV';
+    else if (txt.includes('70/20')) cat = 'Trafo 70/20 kV';
+    else if (txt.includes('70/30')) cat = 'Trafo 70/30 kV';
+    else if (ibt && gv === '150') cat = 'Trafo IBT 500/150 kV';
+    else if (gv === '150') cat = 'Trafo 150/20 kV';
+    else if (gv === '70') cat = 'Trafo 70/20 kV';
+    else cat = 'Trafo lain';
+    const kind = ibt ? 'IBT' : 'TRAFO';
+    return { cat, label: `${gi} · ${kind === 'IBT' ? 'IBT' : 'Trafo'} #${no}`, key: norm(gi) + kind + no };
+  }
+  let ends, no;
+  const isLine = /^(SUTT|SKTT)/.test(P) || (P.startsWith('TRS') && P.includes('-'));
+  if (isLine) {
+    let body = stripVolt(P).replace(/^(SUTT|SKTT|TRS)\s*/, '').trim().replace(/\bLINE\b/g, '');
+    no = circuitNo(body); body = body.replace(/#\s*\d+/g, '');
+    ends = body.includes('-') ? body.split('-').map(s => s.trim()).filter(Boolean)
+      : lokasi.toUpperCase().replace(/^TRS\s+\d+\s*KV\s+/, '').replace(/INC /g, '').split('-').map(s => s.trim());
+  } else if (P.includes('PHT') || (P.startsWith('BAY') && !NON_PHT.some(k => P.includes(k)))) {
+    let remote = stripVolt(P).trim().replace(/^(BAY\s+)?(PHT\s+)?/, '').trim().replace(/^PHT\s+/, '').trim();
+    no = circuitNo(remote); remote = remote.replace(/#\s*\d+/g, '').trim();
+    ends = [gi, remote];
+  } else return null;
+  if (v !== '150' && v !== '70') v = gv;
+  ends = ends.map(e => canon(e.replace(/INC /g, '').replace(/\s+/g, ' ').trim())).sort((a, b) => norm(a) < norm(b) ? -1 : 1);
+  return { cat: `Penghantar ${v} kV`, label: ends.join(' - ') + (no ? ` #${no}` : ''), key: ends.map(norm).join('|') + '#' + no, line: true };
+}
+function mergedHours(iv) {
+  const s = [...iv].sort((a, b) => a[0] - b[0]); let tot = 0, cs = null, ce = null;
+  for (const [a, b] of s) { if (ce === null || a > ce) { if (ce !== null) tot += ce - cs; cs = a; ce = b; } else if (b > ce) ce = b; }
+  if (ce !== null) tot += ce - cs;
+  return tot / 3.6e6;
+}
+function compute(html) {
+  const { title, rows } = readRows(html);
+  if (!rows.length) throw new Error('Tidak ada baris jadwal di file ini. Pastikan yang dipilih adalah file jadwal pekerjaan FORM_JAD.PEK150KV yang diunduh dari JALUR.');
+  const giNames = new Map();
+  for (const r of rows) if (!r[3].toUpperCase().startsWith('TRS')) { const g = giName(r[3]); if (!giNames.has(norm(g))) giNames.set(norm(g), g); }
+  const fixes = new Set(), canon = makeCanon(giNames, fixes);
+  const excluded = [], other = [], counted = [];
+  for (const r of rows) {
+    const iv = parseInterval(r[14], r[15], r[16]); const P = r[7].toUpperCase();
+    if (!r[14].trim() || !iv) { excluded.push([r, 'ABK']); continue; }
+    if (P.includes('TANPA PADAM') || P.trim() === 'ONLINE' || r[8].trim() === '05') { excluded.push([r, 'Tanpa padam']); continue; }
+    const c = classify(r, canon);
+    if (!c) { other.push([r, 'Di luar rekap']); continue; }
+    counted.push({ r, c, iv });
+  }
+  // satu unit trafo = satu jenis (jenis yang paling sering muncul)
+  const votes = {};
+  for (const x of counted) { votes[x.c.key] = votes[x.c.key] || {}; votes[x.c.key][x.c.cat] = (votes[x.c.key][x.c.cat] || 0) + 1; }
+  for (const x of counted) x.c.cat = Object.entries(votes[x.c.key]).sort((a, b) => b[1] - a[1])[0][0];
+  // aturan 3 dan 4: unit/ruas sama + jadwal sama = satu pekerjaan
+  const jobs = new Map();
+  for (const x of counted) {
+    const k = x.c.key + '|' + x.iv[0].getTime() + '|' + x.iv[1].getTime();
+    if (!jobs.has(k)) jobs.set(k, { ...x, rows: [x.r] }); else jobs.get(k).rows.push(x.r);
+  }
+  const units = new Map();
+  let mixed = 0;
+  for (const j of jobs.values()) {
+    const st = new Set(j.rows.map(r => (r[17] || '').trim().toUpperCase()));
+    const status = st.has('ROT') ? 'ROT' : st.has('ROB') ? 'ROB' : 'lain';
+    if (st.has('ROB') && st.has('ROT')) mixed++;
+    const u = units.get(j.c.key) || { cat: j.c.cat, label: j.c.label, iv: [], n: 0, rob: 0, rot: 0 };
+    u.iv.push(j.iv); u.n++; if (status === 'ROB') u.rob++; else if (status === 'ROT') u.rot++;
+    units.set(j.c.key, u);
+  }
+  const ulist = [...units.values()].map(u => ({ ...u, jam: mergedHours(u.iv) }))
+    .sort((a, b) => CATS.indexOf(a.cat) - CATS.indexOf(b.cat) || a.label.localeCompare(b.label));
+  const summary = CATS.map(cat => {
+    const us = ulist.filter(u => u.cat === cat);
+    const sum = k => us.reduce((s, u) => s + u[k], 0);
+    return { cat, jobs: sum('n'), rob: sum('rob'), rot: sum('rot'), units: us.length, jam: sum('jam') };
+  });
+  return { title, total: rows.length, counted: counted.length, jobs: jobs.size, dup: counted.length - jobs.size, mixed, excluded, other, fixes: [...fixes], ulist, summary };
+}
+function dayLabel(iv) {
+  const days = new Map();
+  for (const [s, e] of iv) {
+    const d = new Date(s); d.setHours(0, 0, 0, 0);
+    while (d < e) { days.set(d.getTime(), new Date(d)); d.setDate(d.getDate() + 1); }
+  }
+  const byMonth = new Map();
+  for (const d of [...days.values()].sort((a, b) => a - b)) {
+    const k = NAMA_BULAN[d.getMonth() + 1]; byMonth.set(k, [...(byMonth.get(k) || []), String(d.getDate()).padStart(2, '0')]);
+  }
+  return [...byMonth].map(([m, ds]) => ds.join(', ') + ' ' + m).join(', ');
+}
+
+let R = null;
+function render(res, source, isSample) {
+  R = res;
+  const month = res.title.replace(/^BULAN\s*:\s*/i, '') || 'bulan tidak tertulis';
+  $('status').innerHTML = `<span class="badge ${isSample ? '' : 'real'}">${isSample ? 'Contoh data' : 'File kamu'}</span>
+    <span class="src">${esc(source)}</span><span class="meta">${esc(month)} · ${res.total} baris jadwal</span>`;
+  $('sumTitle').textContent = 'Ringkasan ' + month;
+  const maxJam = Math.max(1, ...res.summary.map(s => s.jam));
+  let h = `<thead><tr><th>Kategori</th><th class="num">Pekerjaan</th><th class="num">ROB</th><th class="num">ROT</th><th class="num">Sirkit / unit</th><th class="num">Jam padam</th><th class="barcell" aria-hidden="true"></th></tr></thead><tbody>`;
+  const row = (s, unitWord, cls = '', label = s.cat) => `<tr class="${cls}"><td class="cat"><span class="${VOLT[s.cat]}"><i class="dot"></i></span>${label}</td><td class="num">${s.jobs}</td><td class="num">${s.rob}</td><td class="num">${s.rot}</td><td class="num">${s.units} ${unitWord}</td><td class="num">${fmt(s.jam)} jam</td><td class="barcell"><div class="bar ${VOLT[s.cat]}" style="width:${(s.jam / maxJam * 100).toFixed(1)}%"></div></td></tr>`;
+  for (const [grp, cats] of Object.entries(MAIN)) {
+    const t = { jobs: 0, rob: 0, rot: 0, units: 0, jam: 0 };
+    for (const c of cats) {
+      const s = res.summary.find(x => x.cat === c); for (const k in t) t[k] += s[k];
+      h += row(s, grp === 'PENGHANTAR' ? 'sirkit' : 'unit');
+    }
+    h += `<tr class="sub"><td>Subtotal ${grp === 'PENGHANTAR' ? 'penghantar' : 'trafo'}</td><td class="num">${t.jobs}</td><td class="num">${t.rob}</td><td class="num">${t.rot}</td><td class="num">${t.units}</td><td class="num">${fmt(t.jam)} jam</td><td class="barcell"></td></tr>`;
+  }
+  for (const s of res.summary.slice(5)) if (s.units) h += row(s, 'unit', 'minor', s.cat + ' (di luar 3 jenis utama)');
+  $('sumTable').innerHTML = h + '</tbody>';
+  const noSched = res.excluded.filter(x => x[1] === 'ABK').length;
+  $('flow').innerHTML = [
+    [res.total, 'baris di file JALUR'], [noSched, 'ABK'], [res.excluded.length - noSched, 'tanpa padam / bertegangan'],
+    [res.other.length, 'busbar, kopel, kapasitor'], [res.dup, 'baris ganda disatukan (aturan 3 dan 4)'], [res.jobs, 'pekerjaan dihitung']
+  ].map(([n, t]) => `<div><b>${n}</b><span>${t}</span></div>`).join('');
+  const used = CATS.filter(c => res.ulist.some(u => u.cat === c));
+  $('catFilter').innerHTML = `<option value="">Semua kategori</option>` + used.map(c => `<option>${c}</option>`).join('');
+  renderDetail();
+  $('fixDetails').hidden = !res.fixes.length;
+  $('fixes').innerHTML = res.fixes.map(f => `<span class="chip">${esc(f)}</span>`).join('');
+  $('exTable').innerHTML = `<thead><tr><th>No</th><th>Lokasi</th><th>Peralatan padam</th><th>Alasan</th></tr></thead><tbody>` +
+    [...res.excluded, ...res.other].sort((a, b) => a[0][0] - b[0][0]).map(([r, why]) => `<tr><td class="num">${r[0]}</td><td>${esc(r[3])}</td><td class="mono">${esc(r[7])}</td><td>${why}</td></tr>`).join('') + '</tbody>';
+}
+function renderDetail() {
+  const f = $('catFilter').value;
+  const list = R.ulist.filter(u => !f || u.cat === f);
+  $('detTable').innerHTML = `<thead><tr><th class="num">No</th><th>Sirkit / unit</th><th class="num">Pekerjaan</th><th class="num">ROB</th><th class="num">ROT</th><th class="num">Jam padam</th><th>Tanggal padam</th></tr></thead><tbody>` +
+    list.map((u, i) => `<tr><td class="num no">${i + 1}</td><td class="mono"><span class="${VOLT[u.cat]}"><i class="dot"></i></span>${esc(u.label)}</td><td class="num">${u.n}</td><td class="num">${u.rob}</td><td class="num">${u.rot}</td><td class="num">${fmt(u.jam)}</td><td>${dayLabel(u.iv)}</td></tr>`).join('') +
+    `<tr class="sub"><td></td><td>Jumlah</td><td class="num">${list.reduce((a, u) => a + u.n, 0)}</td><td class="num">${list.reduce((a, u) => a + u.rob, 0)}</td><td class="num">${list.reduce((a, u) => a + u.rot, 0)}</td><td class="num">${fmt(list.reduce((a, u) => a + u.jam, 0))}</td><td></td></tr></tbody>`;
+}
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+function copy(text, toast) {
+  const done = () => { $(toast).textContent = 'Tersalin. Tempel di Excel.'; setTimeout(() => $(toast).textContent = '', 2500); };
+  if (navigator.clipboard) navigator.clipboard.writeText(text).then(done).catch(() => fallback(text, done)); else fallback(text, done);
+}
+function fallback(text, done) {
+  const t = document.createElement('textarea'); t.value = text; document.body.appendChild(t); t.select();
+  try { document.execCommand('copy'); done(); } catch (e) {} t.remove();
+}
+$('copySum').addEventListener('click', () => {
+  const lines = [['Kategori', 'Pekerjaan', 'ROB', 'ROT', 'Sirkit/unit', 'Jam padam'].join('\t')];
+  for (const s of R.summary) if (s.units || CATS.indexOf(s.cat) < 5) lines.push([s.cat, s.jobs, s.rob, s.rot, s.units, fmt(s.jam)].join('\t'));
+  copy(lines.join('\n'), 'toastSum');
+});
+$('copyDet').addEventListener('click', () => {
+  const f = $('catFilter').value;
+  const lines = [['No', 'Kategori', 'Sirkit/unit', 'Pekerjaan', 'ROB', 'ROT', 'Jam padam', 'Tanggal padam'].join('\t')];
+  R.ulist.filter(u => !f || u.cat === f).forEach((u, i) => lines.push([i + 1, u.cat, u.label, u.n, u.rob, u.rot, fmt(u.jam), dayLabel(u.iv)].join('\t')));
+  copy(lines.join('\n'), 'toastDet');
+});
+$('catFilter').addEventListener('change', renderDetail);
+
+async function loadFile(file) {
+  try {
+    const buf = await file.arrayBuffer();
+    const html = new TextDecoder('windows-1252').decode(buf);
+    render(compute(html), file.name, false);
+  } catch (e) {
+    $('status').innerHTML = `<p class="err">${esc(e.message || 'File tidak bisa dibaca.')}</p>`;
+  }
+}
+$('file').addEventListener('change', e => { if (e.target.files[0]) loadFile(e.target.files[0]); e.target.value = ''; });
+const drop = $('drop');
+['dragenter', 'dragover'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave', 'drop'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove('over'); }));
+drop.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if (f) loadFile(f); });
+
+// Contoh data: baris rekaan yang meniru format file unduhan JALUR, untuk menunjukkan cara kerja aplikasi.
+function sampleHtml() {
+  const row = (no, lok, padam, teg, sifat, d1, d2, jam, st = 'ROB') =>
+    `<tr><td>${no}</td><td></td><td></td><td>${lok}</td><td>Pekerjaan contoh</td><td>${teg}</td><td></td><td>${padam}</td><td>${sifat}</td><td>M. UPT</td><td></td><td></td><td></td><td></td><td>${d1}</td><td>${d2}</td><td>${jam}</td><td>${st}</td><td>UP2B JAWA BARAT</td><td></td></tr>`;
+  const D = 'Senin, 02 Mar 2026', E = 'Selasa, 03 Mar 2026', F = 'Kamis, 05 Mar 2026';
+  return `<table><tr><td>BULAN : Maret 2026</td></tr>` + [
+    row(1, 'TRS 150kV CONTOH A-CONTOH B', 'SUTT 150 KV CONTOH A - CONTOH B#1', '150kV', '03', D, E, '08:00-16:00'),
+    row(2, 'GI 150KV CONTOH A', 'BAY PHT 150kV CONTOH B#2', '150kV', '03', F, F, '08:00-16:00'),
+    row(3, 'GI 150KV CONTOH B', 'BAY CONTOH A#2', '150kV', '03', F, F, '08:00-16:00', 'ROT'),
+    row(4, 'GI 70KV CONTOH C', 'PHT 70KV CONTOH D#1', '70kV', '03', D, D, '08:00-16:00'),
+    row(5, 'GI 70KV CONTOH D', 'PHT 70KV CONTOH C#1', '70kV', '03', E, E, '08:00-12:00', 'ROT'),
+    row(6, 'GI 150KV CONTOH A', 'BAY TRAFO #2 150/20 KV', '150kV', '03', D, D, '08:00-16:00'),
+    row(7, 'GI 150KV CONTOH A', 'BAY TRF#2 150/20kV', '20kV', '03', D, D, '08:00-16:00', 'ROT'),
+    row(8, 'GI 150KV CONTOH B', 'BAY IBT#1 500/150kV (LV)', '150kV', '03', E, F, '22:00-06:00'),
+    row(9, 'GI 70KV CONTOH C', 'TRAFO#3 70/20KV', '20kV', '03', F, F, '08:00-15:00', 'ROT'),
+    row(10, 'GI 150KV CONTOH B', 'BUSBAR A', '150kV', '03', D, D, '06:00-12:00'),
+    row(11, 'GI 150KV CONTOH A', 'TANPA PADAM', '150kV', '05', E, E, '08:00-16:00'),
+    row(12, 'GI 70KV CONTOH D', 'BAY TRAFO#1', '70kV', '03', '', '', '-'),
+  ].join('') + '</table>';
+}
+function showSample() { render(compute(sampleHtml()), 'File contoh, Maret 2026', true); }
+$('sample').addEventListener('click', showSample);
+showSample();
+</script>
