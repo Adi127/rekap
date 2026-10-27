@@ -264,7 +264,16 @@ function scadaItems(uraian) {
   });
   return [...found].sort();
 }
+const UPT_CODE = { '3512': 'UPT Bandung', '3513': 'UPT Cirebon', '3514': 'UPT Karawang', '3518': 'UPT Bekasi' };
+const uptCode = r => { const m = /^[A-Z]+-(\d{4})/.exec((r[6] || '').trim()); return m ? UPT_CODE[m[1]] : undefined; };
+function uptLookup(rows) {
+  // GI yang muncul dengan kode UPT di baris lain dipakai untuk baris tanpa kode (misalnya KONTROL GI)
+  const gi = new Map();
+  for (const r of rows) { const u = uptCode(r); if (u && !r[3].toUpperCase().startsWith('TRS')) gi.set(norm(giName(r[3])), u); }
+  return r => uptCode(r) || gi.get(norm(giName(r[3]))) || '-';
+}
 function computeScada(rows) {
+  const upt = uptLookup(rows);
   const seen = new Set(), list = [];
   for (const r of rows) {
     const iv = parseInterval(r[14], r[15], r[16]);
@@ -273,7 +282,7 @@ function computeScada(rows) {
     if (!items.length) continue;
     const k = [norm(r[3]), norm(r[7]), iv[0].getTime(), items.join()].join('|');
     if (seen.has(k)) continue; seen.add(k);
-    list.push({ r, iv, items });
+    list.push({ r, iv, items, upt: upt(r) });
   }
   return list.sort((a, b) => a.iv[0] - b.iv[0]);
 }
@@ -372,9 +381,10 @@ function render(res, source, isSample) {
 function renderScada() {
   const L = R.scada;
   const cnt = SCADA.map((s, i) => [L.filter(x => x.items.includes(i)).length, s.item]);
-  $('scadaSum').innerHTML = [[L.length, 'pekerjaan berdampak ke SCADA'], ...cnt.filter(c => c[0])].map(([n, t]) => `<div><b>${n}</b><span>${t}</span></div>`).join('');
-  $('scadaTable').innerHTML = L.length ? `<thead><tr><th class="num">No</th><th>Tanggal</th><th>Lokasi</th><th>Peralatan padam</th><th>Uraian pekerjaan</th><th>Item pekerjaan</th><th>Dampak ke SCADA</th></tr></thead><tbody>` +
-    L.map((x, i) => `<tr><td class="num no">${i + 1}</td><td>${dayLabel([x.iv])}<br><span class="mono nowrap">${esc(x.r[16])}</span></td><td>${esc(x.r[3])}</td><td class="mono">${esc(x.r[7])}</td><td>${esc(x.r[4])}</td><td>${x.items.map(k => SCADA[k].item).join('<br>')}</td><td>${x.items.map(k => SCADA[k].dampak).join('<br>')}</td></tr>`).join('') + '</tbody>'
+  const perUpt = [...new Set(L.map(x => x.upt))].sort().map(u => [L.filter(x => x.upt === u).length, u === '-' ? 'UPT tidak diketahui' : u]);
+  $('scadaSum').innerHTML = [[L.length, 'pekerjaan berdampak ke SCADA'], ...cnt.filter(c => c[0]), ...perUpt].map(([n, t]) => `<div><b>${n}</b><span>${t}</span></div>`).join('');
+  $('scadaTable').innerHTML = L.length ? `<thead><tr><th class="num">No</th><th>Tanggal</th><th>UPT</th><th>Lokasi</th><th>Peralatan padam</th><th>Uraian pekerjaan</th><th>Item pekerjaan</th><th>Dampak ke SCADA</th></tr></thead><tbody>` +
+    L.map((x, i) => `<tr><td class="num no">${i + 1}</td><td>${dayLabel([x.iv])}<br><span class="mono nowrap">${esc(x.r[16])}</span></td><td>${esc(x.upt)}</td><td>${esc(x.r[3])}</td><td class="mono">${esc(x.r[7])}</td><td>${esc(x.r[4])}</td><td>${x.items.map(k => SCADA[k].item).join('<br>')}</td><td>${x.items.map(k => SCADA[k].dampak).join('<br>')}</td></tr>`).join('') + '</tbody>'
     : '<tbody><tr><td>Tidak ada pekerjaan yang berdampak ke SCADA di bulan ini.</td></tr></tbody>';
 }
 function renderDetail() {
@@ -405,8 +415,8 @@ $('copyDet').addEventListener('click', () => {
   copy(lines.join('\n'), 'toastDet');
 });
 $('copyScada').addEventListener('click', () => {
-  const lines = [['No', 'Tanggal', 'Jam', 'Lokasi', 'Peralatan padam', 'Uraian pekerjaan', 'Item pekerjaan', 'Dampak ke SCADA'].join('\t')];
-  R.scada.forEach((x, i) => lines.push([i + 1, dayLabel([x.iv]), x.r[16], x.r[3], x.r[7], x.r[4].replace(/\s+/g, ' '), x.items.map(k => SCADA[k].item).join('; '), x.items.map(k => SCADA[k].dampak).join('; ')].join('\t')));
+  const lines = [['No', 'Tanggal', 'Jam', 'UPT', 'Lokasi', 'Peralatan padam', 'Uraian pekerjaan', 'Item pekerjaan', 'Dampak ke SCADA'].join('\t')];
+  R.scada.forEach((x, i) => lines.push([i + 1, dayLabel([x.iv]), x.r[16], x.upt, x.r[3], x.r[7], x.r[4].replace(/\s+/g, ' '), x.items.map(k => SCADA[k].item).join('; '), x.items.map(k => SCADA[k].dampak).join('; ')].join('\t')));
   copy(lines.join('\n'), 'toastScada');
 });
 $('catFilter').addEventListener('change', renderDetail);
